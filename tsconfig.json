@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "CommonJS",
+    "allowJs": true,
+    "types": ["node", "jest"],
+    "declaration": true,
+    "outDir": "./dist",
+
+    /* Strict Type-Checking Options */
+    "strict": true,
+    "noImplicitAny": false,
+    "alwaysStrict": false,
+
+    /* Module Resolution Options */
+    "rootDir": "./src",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    /* Advanced Options */
+    "skipLibCheck": true
+  },
+  "include": ["./src/**/*.js", "./src/**/*.ts"],
+  "exclude": ["node_modules", "./src/**/mock*", "./src/**/*.spec.*"]
+}
