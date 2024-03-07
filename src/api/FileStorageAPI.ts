@@ -12,6 +12,7 @@ export interface FileMeta {
 export interface FileStorageOptions {
   projectId?: string;
   baseURL?: string;
+  fetch?: typeof fetch;
 }
 
 export class FileStorageAPI implements FileAPI {
@@ -45,7 +46,7 @@ export class FileStorageAPI implements FileAPI {
       return {} as T;
     }
 
-    const response = await fetch(
+    const response = await (this.options.fetch ?? globalThis.fetch)(
       `${this.baseURL}${API_BASE_PATH}/project/${this.projectId}/file/${encodeURIComponent(filePath)}`
     );
     return (await response.json()) as T;
@@ -57,7 +58,9 @@ export class FileStorageAPI implements FileAPI {
       ...(ext ? { ext } : {}),
       from: String(from ?? 0)
     });
-    const response = await fetch(`${this.baseURL}${API_BASE_PATH}/project/${this.projectId}/doc?${params}`);
+    const response = await (this.options.fetch ?? globalThis.fetch)(
+      `${this.baseURL}${API_BASE_PATH}/project/${this.projectId}/doc?${params}`
+    );
     return parseNDJSON(await response.text());
   }
 }

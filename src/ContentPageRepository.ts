@@ -25,20 +25,24 @@ export class ContentPageRepository implements FileAPI {
   ) {}
 
   async listFiles(options: { dir?: string; ext?: string }): Promise<FilePath[]> {
-    const systemFiles = await FileSystemAPI.inst.listFiles(options);
-    const storageFiles = await this.storageAPI.listFiles(options);
-    return systemFiles.concat(storageFiles);
+    return (
+      await Promise.allSettled([FileSystemAPI.inst.listFiles(options), this.storageAPI.listFiles(options)])
+    ).flatMap(result => (result.status === 'fulfilled' ? result.value : []));
   }
 
   async readJSON<T extends JSONNode = JSONNode>(relativePath: FilePath): Promise<T> {
     const filePath = relativePath.startsWith(this.options.contentDir)
       ? relativePath
       : path.join(this.options.contentDir, relativePath);
-    return isFileExists(filePath) ? FileSystemAPI.inst.readJSON(filePath) : this.storageAPI.readJSON(filePath);
+    try {
+      return isFileExists(filePath) ? FileSystemAPI.inst.readJSON(filePath) : this.storageAPI.readJSON(filePath);
+    } catch (ex) {
+      console.warn(ex instanceof Error ? ex.message : ex);
+    }
+    return {} as T;
   }
 
   async listAllSlugs(): Promise<Slug[]> {
-    // TODO
     const contentFiles = await this.listFiles({ dir: this.options.contentDir, ext: PAGE_EXT });
 
     const isErrorPage = ([first, second, ...tail]: Slug) =>

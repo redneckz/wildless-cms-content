@@ -1,6 +1,6 @@
 {
   "name": "@redneckz/wildless-cms-content",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "license": "MIT",
   "author": {
     "name": "redneckz",
@@ -49,7 +49,7 @@
     "size": "echo size-limit"
   },
   "dependencies": {
-    "@redneckz/json-op": "^0.0.12",
+    "@redneckz/json-op": "^0.0.13",
     "@redneckz/json-ref": "^0.0.14",
     "glob": "^7.1.3",
     "rehype-parse": "^9.0.0",
