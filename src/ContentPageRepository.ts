@@ -11,10 +11,17 @@ export const PAGE_EXT = '.page.json';
 
 export type Slug = string[];
 
-export type ContentPageRepositoryOptions = TransformationOptions & FileStorageOptions;
+export type ContentPageRepositoryOptions = TransformationOptions &
+  FileStorageOptions & {
+    pageExt?: string;
+  };
 
 export class ContentPageRepository implements FileAPI {
   public static readonly inst = new ContentPageRepository();
+
+  get pageExt(): string {
+    return this.options.pageExt ?? PAGE_EXT;
+  }
 
   constructor(
     private readonly options: ContentPageRepositoryOptions = {
@@ -43,7 +50,7 @@ export class ContentPageRepository implements FileAPI {
   }
 
   async listAllSlugs(): Promise<Slug[]> {
-    const contentFiles = await this.listFiles({ dir: this.options.contentDir, ext: PAGE_EXT });
+    const contentFiles = await this.listFiles({ dir: this.options.contentDir, ext: this.pageExt });
 
     const isErrorPage = ([first, second, ...tail]: Slug) =>
       [first, second].some(_ => _ && /^\d+$/.test(_)) && tail.length === 0;
@@ -56,8 +63,8 @@ export class ContentPageRepository implements FileAPI {
   }
 
   private toSlug(filePath: string): Slug {
-    if (filePath.endsWith(PAGE_EXT)) {
-      return this.toSlug(filePath.slice(0, -PAGE_EXT.length));
+    if (filePath.endsWith(this.pageExt)) {
+      return this.toSlug(filePath.slice(0, -this.pageExt.length));
     }
     const [root, ...slug] = filePath.split('/').filter(Boolean);
     return root === this.options.contentDir ? slug : [root, ...slug];
@@ -65,7 +72,7 @@ export class ContentPageRepository implements FileAPI {
 
   private toFilePath(slug: Slug): string {
     const pathname = path.join(this.options.contentDir, ...slug);
-    const indexFilePath = path.join(pathname, `index${PAGE_EXT}`);
-    return isFileExists(indexFilePath) ? indexFilePath : `${pathname}${PAGE_EXT}`;
+    const indexFilePath = path.join(pathname, `index${this.pageExt}`);
+    return isFileExists(indexFilePath) ? indexFilePath : `${pathname}${this.pageExt}`;
   }
 }
