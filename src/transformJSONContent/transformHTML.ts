@@ -17,7 +17,8 @@ export const transform = entryValueTransform(async html => {
     ...defaultSchema,
     protocols: {
       ...defaultSchema.protocols,
-      href: [...(defaultSchema?.protocols?.href || []), 'tel']
+      href: [...(defaultSchema?.protocols?.href || []), 'tel'],
+      src: [...(defaultSchema.protocols?.src ?? []), 'data']
     }
   };
 
