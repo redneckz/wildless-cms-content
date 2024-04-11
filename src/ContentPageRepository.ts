@@ -1,6 +1,6 @@
 import { type JSONNode, type JSONRecord } from '@redneckz/json-op';
 import path from 'path/posix';
-import type { FileAPI, FilePath } from './api/FileAPI';
+import type { FileAPI, FilePath, FileQuery } from './api/FileAPI';
 import { FileStorageAPI, type FileStorageOptions } from './api/FileStorageAPI';
 import { FileSystemAPI } from './api/FileSystemAPI';
 import { isFileExists } from './fs/isFileExists';
@@ -31,7 +31,7 @@ export class ContentPageRepository implements FileAPI {
     private readonly storageAPI = new FileStorageAPI(options)
   ) {}
 
-  async listFiles(options: { dir?: string; ext?: string }): Promise<FilePath[]> {
+  async listFiles(options: { dir?: string; ext?: string } & FileQuery): Promise<FilePath[]> {
     return (
       await Promise.allSettled([FileSystemAPI.inst.listFiles(options), this.storageAPI.listFiles(options)])
     ).flatMap(result => (result.status === 'fulfilled' ? result.value : []));

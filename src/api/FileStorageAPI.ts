@@ -1,5 +1,5 @@
 import { type JSONNode } from '@redneckz/json-op';
-import type { FileAPI, FilePath } from './FileAPI';
+import type { FileAPI, FilePath, FileQuery } from './FileAPI';
 
 const API_BASE_PATH = '/api/v1/wcms-file-storage';
 
@@ -26,7 +26,7 @@ export class FileStorageAPI implements FileAPI {
 
   constructor(private readonly options: FileStorageOptions = {}) {}
 
-  async listFiles(options: { dir?: string; ext?: string }): Promise<FilePath[]> {
+  async listFiles(options: { dir?: string; ext?: string } & FileQuery): Promise<FilePath[]> {
     if (!this.projectId) {
       return [];
     }
@@ -34,8 +34,8 @@ export class FileStorageAPI implements FileAPI {
     let pageItems: FileMeta[] = [];
     let items: FileMeta[] = [];
     do {
-      const maxRevision = pageItems.length ? pageItems[pageItems.length - 1].revision : 0;
-      pageItems = await this.fetchProjectDocs(options, maxRevision);
+      const prevRevision = pageItems.length ? pageItems[pageItems.length - 1].revision : 0;
+      pageItems = await this.fetchProjectDocs(options, prevRevision);
       items = items.concat(pageItems);
     } while (pageItems.length > 0);
     return items.map(({ publicId, name }) => name || publicId);
@@ -52,11 +52,15 @@ export class FileStorageAPI implements FileAPI {
     return (await response.json()) as T;
   }
 
-  private async fetchProjectDocs({ dir, ext }: { dir?: string; ext?: string } = {}, from = 0): Promise<FileMeta[]> {
+  private async fetchProjectDocs(
+    { dir, ext, ...query }: { dir?: string; ext?: string } & FileQuery = {},
+    fromRevision = 0
+  ): Promise<FileMeta[]> {
     const params = new URLSearchParams({
       ...(dir ? { dir } : {}),
       ...(ext ? { ext } : {}),
-      from: String(from ?? 0)
+      from: String(fromRevision ?? 0),
+      ...query
     });
     const response = await (this.options.fetch ?? globalThis.fetch)(
       `${this.baseURL}${API_BASE_PATH}/project/${this.projectId}/doc?${params}`
