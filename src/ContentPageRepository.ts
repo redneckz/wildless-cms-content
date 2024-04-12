@@ -37,6 +37,12 @@ export class ContentPageRepository implements FileAPI {
     ).flatMap(result => (result.status === 'fulfilled' ? result.value : []));
   }
 
+  async countFiles(options: { dir?: string; ext?: string } & FileQuery): Promise<number> {
+    return (await Promise.allSettled([FileSystemAPI.inst.countFiles(options), this.storageAPI.countFiles(options)]))
+      .flatMap(result => (result.status === 'fulfilled' ? result.value : 0))
+      .reduce((a, b) => a + b);
+  }
+
   async readJSON<T extends JSONNode = JSONNode>(relativePath: FilePath): Promise<T> {
     const filePath = relativePath.startsWith(this.options.contentDir)
       ? relativePath
@@ -62,7 +68,7 @@ export class ContentPageRepository implements FileAPI {
     return transformJSONDocContent(this)(this.toFilePath(slug), { ...this.options, ...options });
   }
 
-  private toSlug(filePath: string): Slug {
+  toSlug(filePath: string): Slug {
     if (filePath.endsWith(this.pageExt)) {
       return this.toSlug(filePath.slice(0, -this.pageExt.length));
     }
@@ -70,7 +76,7 @@ export class ContentPageRepository implements FileAPI {
     return root === this.options.contentDir ? slug : [root, ...slug];
   }
 
-  private toFilePath(slug: Slug): string {
+  toFilePath(slug: Slug): string {
     const pathname = path.join(this.options.contentDir, ...slug);
     const indexFilePath = path.join(pathname, `index${this.pageExt}`);
     return isFileExists(indexFilePath) ? indexFilePath : `${pathname}${this.pageExt}`;

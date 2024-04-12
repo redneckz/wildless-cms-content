@@ -7,6 +7,7 @@ describe('inheritJSONDocContent', () => {
 
     const api = {
       listFiles: async () => [],
+      countFiles: async () => 0,
       readJSON: async () => ({})
     } as FileAPI;
 
@@ -23,6 +24,7 @@ describe('inheritJSONDocContent', () => {
 
     const api = {
       listFiles: async () => [],
+      countFiles: async () => 0,
       readJSON: async () => parentContent
     } as FileAPI;
 

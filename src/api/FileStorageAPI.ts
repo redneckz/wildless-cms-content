@@ -41,6 +41,15 @@ export class FileStorageAPI implements FileAPI {
     return items.map(({ publicId, name }) => name || publicId);
   }
 
+  async countFiles(options: { dir?: string; ext?: string } & FileQuery): Promise<number> {
+    const params = this.computeDocQueryParams(options);
+    const response = await (this.options.fetch ?? globalThis.fetch)(
+      `${this.baseURL}${API_BASE_PATH}/project/${this.projectId}/doc?${params}`,
+      { method: 'HEAD' }
+    );
+    return parseInt(response.headers.get('X-Total-Count') ?? '0', 10);
+  }
+
   async readJSON<T extends JSONNode = JSONNode>(filePath: FilePath): Promise<T> {
     if (!this.projectId) {
       return {} as T;
@@ -53,19 +62,26 @@ export class FileStorageAPI implements FileAPI {
   }
 
   private async fetchProjectDocs(
-    { dir, ext, ...query }: { dir?: string; ext?: string } & FileQuery = {},
+    options: { dir?: string; ext?: string } & FileQuery = {},
     fromRevision = 0
   ): Promise<FileMeta[]> {
-    const params = new URLSearchParams({
+    const params = this.computeDocQueryParams(options, fromRevision);
+    const response = await (this.options.fetch ?? globalThis.fetch)(
+      `${this.baseURL}${API_BASE_PATH}/project/${this.projectId}/doc?${params}`
+    );
+    return parseNDJSON(await response.text());
+  }
+
+  private computeDocQueryParams(
+    { dir, ext, ...query }: { dir?: string; ext?: string } & FileQuery = {},
+    fromRevision = 0
+  ): URLSearchParams {
+    return new URLSearchParams({
       ...(dir ? { dir } : {}),
       ...(ext ? { ext } : {}),
       from: String(fromRevision ?? 0),
       ...query
     });
-    const response = await (this.options.fetch ?? globalThis.fetch)(
-      `${this.baseURL}${API_BASE_PATH}/project/${this.projectId}/doc?${params}`
-    );
-    return parseNDJSON(await response.text());
   }
 }
 
