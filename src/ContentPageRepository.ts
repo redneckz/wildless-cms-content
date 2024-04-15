@@ -1,6 +1,6 @@
-import { type JSONNode, type JSONRecord } from '@redneckz/json-op';
+import type { JSONNode, JSONRecord } from '@redneckz/json-op';
 import path from 'path/posix';
-import type { FileAPI, FilePath, FileQuery } from './api/FileAPI';
+import type { FileAPI, FilePath, ListFilesOptions } from './api/FileAPI';
 import { FileStorageAPI, type FileStorageOptions } from './api/FileStorageAPI';
 import { FileSystemAPI } from './api/FileSystemAPI';
 import { isFileExists } from './fs/isFileExists';
@@ -31,13 +31,19 @@ export class ContentPageRepository implements FileAPI {
     private readonly storageAPI = new FileStorageAPI(options)
   ) {}
 
-  async listFiles(options: { dir?: string; ext?: string } & FileQuery): Promise<FilePath[]> {
+  async listFiles(options: ListFilesOptions): Promise<FilePath[]> {
     return (
       await Promise.allSettled([FileSystemAPI.inst.listFiles(options), this.storageAPI.listFiles(options)])
     ).flatMap(result => (result.status === 'fulfilled' ? result.value : []));
   }
 
-  async countFiles(options: { dir?: string; ext?: string } & FileQuery): Promise<number> {
+  async downloadFiles(options: ListFilesOptions): Promise<[FilePath, JSONNode][]> {
+    return (
+      await Promise.allSettled([FileSystemAPI.inst.downloadFiles(options), this.storageAPI.downloadFiles(options)])
+    ).flatMap(result => (result.status === 'fulfilled' ? result.value : []));
+  }
+
+  async countFiles(options: ListFilesOptions): Promise<number> {
     return (await Promise.allSettled([FileSystemAPI.inst.countFiles(options), this.storageAPI.countFiles(options)]))
       .flatMap(result => (result.status === 'fulfilled' ? result.value : 0))
       .reduce((a, b) => a + b);
