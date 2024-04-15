@@ -1,6 +1,6 @@
 {
   "name": "@redneckz/wildless-cms-content",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "license": "MIT",
   "author": {
     "name": "redneckz",
@@ -35,6 +35,11 @@
       "import": "./lib/index.js",
       "require": "./dist/index.js",
       "types": "./lib/index.d.ts"
+    },
+    "./edge": {
+      "import": "./lib/index.edge.js",
+      "require": "./dist/index.edge.js",
+      "types": "./lib/index.edge.d.ts"
     },
     "./package.json": "./package.json"
   },

@@ -43,7 +43,7 @@ export class FileStorageAPI implements FileAPI {
       return [];
     }
 
-    return (await this.fetchAllProjectDocs({ ...options, expanded: 'true' })).map(({ publicId, name, json }) => [
+    return (await this.fetchAllProjectDocs({ ...options, expanded: true })).map(({ publicId, name, json }) => [
       name || publicId,
       json ? JSON.parse(json) : null
     ]);
@@ -76,14 +76,11 @@ export class FileStorageAPI implements FileAPI {
       const prevRevision = pageItems.length ? pageItems[pageItems.length - 1].revision : 0;
       pageItems = await this.fetchProjectDocs(options, prevRevision);
       results = results.concat(pageItems);
-    } while (pageItems.length > 0);
+    } while (pageItems.length > 0 && !options.size);
     return results;
   }
 
-  private async fetchProjectDocs(
-    options: ListFilesOptions & { expanded?: boolean } = {},
-    fromRevision = 0
-  ): Promise<FileMetaWithJSON[]> {
+  private async fetchProjectDocs(options: ListFilesOptions = {}, fromRevision = 0): Promise<FileMetaWithJSON[]> {
     const params = this.computeDocQueryParams(options, fromRevision);
     const response = await (this.options.fetch ?? globalThis.fetch)(
       `${this.baseURL}${API_BASE_PATH}/projects/${this.projectId}/docs?${params}`
@@ -91,10 +88,14 @@ export class FileStorageAPI implements FileAPI {
     return parseNDJSON(await response.text());
   }
 
-  private computeDocQueryParams({ dir, ext, ...query }: ListFilesOptions = {}, fromRevision = 0): URLSearchParams {
+  private computeDocQueryParams(
+    { dir, ext, size, ...query }: ListFilesOptions = {},
+    fromRevision = 0
+  ): URLSearchParams {
     return new URLSearchParams({
       ...(dir ? { dir } : {}),
       ...(ext ? { ext } : {}),
+      ...(size ? { size: String(size) } : {}),
       from: String(fromRevision ?? 0),
       ...query
     });

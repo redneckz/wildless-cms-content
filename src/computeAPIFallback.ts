@@ -1,13 +1,13 @@
-import { JSONRecord, async, fp } from '@redneckz/json-op';
+import { async, fp, type JSONRecord } from '@redneckz/json-op';
 import { collectRef } from '@redneckz/json-ref';
-import { TransformationOptions } from './transformJSONContent/TransformationOptions';
+import { type FileReaderAPI } from './api/FileAPI';
+import { type TransformationOptions } from './transformJSONContent/TransformationOptions';
 import { transformJSONDocContent } from './transformJSONContent/transformJSONDocContent';
-import { type FileAPI } from './api/FileAPI';
 
 export type Fallback = JSONRecord;
 
 export const computeAPIFallback =
-  (api: FileAPI) =>
+  (api: FileReaderAPI) =>
   async (data: JSONRecord, options: TransformationOptions): Promise<Fallback> =>
     Object.fromEntries(
       await async.fulfilled(

@@ -10,9 +10,9 @@ const find = promisify(glob);
 export class FileSystemAPI implements FileAPI {
   public static readonly inst: FileAPI = new FileSystemAPI();
 
-  async listFiles({ dir, ext }: ListFilesOptions): Promise<FilePath[]> {
+  async listFiles({ dir, ext, size }: ListFilesOptions): Promise<FilePath[]> {
     const files: string[] = await find(`*${ext}`, { cwd: dir, matchBase: true });
-    return files.map(_ => (dir ? path.join(dir, _) : _));
+    return files.slice(0, size).map(_ => (dir ? path.join(dir, _) : _));
   }
 
   async downloadFiles(options: ListFilesOptions): Promise<[FilePath, JSONNode][]> {
