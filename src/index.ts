@@ -3,6 +3,7 @@ export * from './api/FileAPI';
 export * from './api/FileFetcherAPI';
 export * from './api/FileStorageAPI';
 export * from './api/FileSystemAPI';
+export * from './api/composeFileReaderAPI';
 
 export { computeAPIFallback } from './computeAPIFallback';
 

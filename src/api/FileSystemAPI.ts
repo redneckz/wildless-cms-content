@@ -10,6 +10,8 @@ const find = promisify(glob);
 export class FileSystemAPI implements FileAPI {
   public static readonly inst: FileAPI = new FileSystemAPI();
 
+  constructor(private readonly basePath?: string) {}
+
   async listFiles({ dir, ext, size }: ListFilesOptions): Promise<FilePath[]> {
     const files: string[] = await find(`*${ext}`, { cwd: dir, matchBase: true });
     return files.slice(0, size).map(_ => (dir ? path.join(dir, _) : _));
@@ -26,6 +28,6 @@ export class FileSystemAPI implements FileAPI {
   }
 
   async readJSON<T extends JSONNode = JSONNode>(filePath: FilePath): Promise<T> {
-    return readJSON(filePath);
+    return readJSON(this.basePath ? path.join(this.basePath, filePath) : filePath);
   }
 }

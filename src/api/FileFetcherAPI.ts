@@ -7,7 +7,11 @@ export class FileFetcherAPI implements FileReaderAPI {
 
   async readJSON<T extends JSONNode = JSONNode>(filePath: string): Promise<T> {
     const response = await fetch(`${this.baseURL}/${normalizeFilePath(filePath)}`);
-    return response.json();
+    if (response.status >= 200 && response.status < 300) {
+      return response.json();
+    } else {
+      throw new Error(`Failed to read "${filePath}"`);
+    }
   }
 }
 
