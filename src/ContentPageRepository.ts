@@ -1,5 +1,5 @@
 import type { JSONNode, JSONRecord } from '@redneckz/json-op';
-import { not } from '@redneckz/json-op/lib/fp/Predicate';
+import { fp } from '@redneckz/json-op';
 import path from 'path/posix';
 import type { FileAPI, FilePath, ListFilesOptions } from './api/FileAPI';
 import { FileStorageAPI, type FileStorageOptions } from './api/FileStorageAPI';
@@ -63,7 +63,7 @@ export class ContentPageRepository implements FileAPI {
   }
 
   async listAllSlugs(): Promise<Slug[]> {
-    return (await this.allSlugs()).filter(not(isErrorPage));
+    return (await this.allSlugs()).filter(fp.Predicate.not(isErrorPage));
   }
 
   async listErrorSlugs(): Promise<Slug[]> {
@@ -91,7 +91,7 @@ export class ContentPageRepository implements FileAPI {
   private async allSlugs(): Promise<Slug[]> {
     const contentFiles = await this.listFiles({ dir: this.options.contentDir, ext: this.pageExt });
 
-    return contentFiles.map(this.toSlug);
+    return contentFiles.map(_ => this.toSlug(_));
   }
 }
 
