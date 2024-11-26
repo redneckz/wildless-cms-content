@@ -1,4 +1,5 @@
 import type { JSONNode, JSONRecord } from '@redneckz/json-op';
+import { not } from '@redneckz/json-op/lib/fp/Predicate';
 import path from 'path/posix';
 import type { FileAPI, FilePath, ListFilesOptions } from './api/FileAPI';
 import { FileStorageAPI, type FileStorageOptions } from './api/FileStorageAPI';
@@ -46,7 +47,7 @@ export class ContentPageRepository implements FileAPI {
   async countFiles(options: ListFilesOptions): Promise<number> {
     return (await Promise.allSettled([FileSystemAPI.inst.countFiles(options), this.storageAPI.countFiles(options)]))
       .flatMap(result => (result.status === 'fulfilled' ? result.value : 0))
-      .reduce((a, b) => a + b);
+      .reduce((a, b) => a + b, 0);
   }
 
   async readJSON<T extends JSONNode = JSONNode>(relativePath: FilePath): Promise<T> {
@@ -62,12 +63,11 @@ export class ContentPageRepository implements FileAPI {
   }
 
   async listAllSlugs(): Promise<Slug[]> {
-    const contentFiles = await this.listFiles({ dir: this.options.contentDir, ext: this.pageExt });
+    return (await this.allSlugs()).filter(not(isErrorPage));
+  }
 
-    const isErrorPage = ([first, second, ...tail]: Slug) =>
-      [first, second].some(_ => _ && /^\d+$/.test(_)) && tail.length === 0;
-
-    return contentFiles.map(_ => this.toSlug(_)).filter(_ => !isErrorPage(_));
+  async listErrorSlugs(): Promise<Slug[]> {
+    return (await this.allSlugs()).filter(isErrorPage);
   }
 
   generatePage(slug: Slug, options?: Partial<TransformationOptions>): Promise<JSONRecord> {
@@ -87,4 +87,14 @@ export class ContentPageRepository implements FileAPI {
     const indexFilePath = path.join(pathname, `index${this.pageExt}`);
     return isFileExists(indexFilePath) ? indexFilePath : `${pathname}${this.pageExt}`;
   }
+
+  private async allSlugs(): Promise<Slug[]> {
+    const contentFiles = await this.listFiles({ dir: this.options.contentDir, ext: this.pageExt });
+
+    return contentFiles.map(this.toSlug);
+  }
+}
+
+function isErrorPage([first, second, ...tail]: Slug) {
+  return [first, second].some(_ => _ && /^\d+$/.test(_)) && tail.length === 0;
 }
