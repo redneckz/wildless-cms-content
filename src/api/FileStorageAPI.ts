@@ -64,7 +64,7 @@ export class FileStorageAPI implements FileAPI {
     }
 
     const response = await (this.options.fetch ?? globalThis.fetch)(
-      `${this.baseURL}${API_BASE_PATH}/projects/${this.projectId}/files/${encodeURIComponent(filePath)}`
+      `${this.baseURL}${API_BASE_PATH}/projects/${this.projectId}/files/${filePath}`
     );
     if (response.status >= 200 && response.status < 300) {
       return response.json();
