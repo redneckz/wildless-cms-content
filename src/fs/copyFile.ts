@@ -6,6 +6,8 @@ const mkdir = util.promisify(fs.mkdir);
 const copy = util.promisify(fs.copyFile);
 
 export async function copyFile(input: string, output: string) {
-  await mkdir(path.dirname(output), { recursive: true });
-  await copy(input, output);
+  if (fs.existsSync(input)) {
+    await mkdir(path.dirname(output), { recursive: true });
+    await copy(input, output);
+  }
 }
