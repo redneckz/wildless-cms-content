@@ -1,18 +1,55 @@
 import { JSONPath, fp, type JSONRecord } from '@redneckz/json-op';
+import { fork } from 'child_process';
+import { dirname } from 'path';
 import path from 'path/posix';
+import { fileURLToPath } from 'url';
 import { isFileStorageId } from '../api/isFileStorageId';
-import { type ImgSize } from './ImgSize';
 import { entryValueTransform, type JSONEntryTransformPrecondition } from './JSONEntryTransform';
 import { type Picture } from './Picture';
 import { type TransformationOptions } from './TransformationOptions';
 import { hasField } from './hasField';
 import { isAttachment } from './isAttachment';
-import { transformImg } from './transformImg';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export const IMAGE_EXT_LIST = ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.heif', '.avif', '.svg'];
 
 const isImgSource = (path: JSONPath.JSONPath) => path.includes('sources');
 const isPicture = hasField('src', isAttachment(IMAGE_EXT_LIST));
+
+interface ImageProcessorResponse {
+  success: boolean;
+  output?: string;
+  error?: string;
+}
+
+const processImageInChild = async (
+  src: string,
+  options: TransformationOptions & { format?: string },
+  output: string
+): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const child = fork(path.resolve(__dirname, 'imageProcessor.js'));
+
+    child.send({ src, options, output });
+
+    child.on('message', (message: ImageProcessorResponse) => {
+      if (message.success) {
+        resolve();
+      } else {
+        reject(new Error(message.error));
+      }
+    });
+
+    child.on('error', reject);
+    child.on('exit', code => {
+      if (code !== 0) {
+        reject(new Error(`Child process exited with code ${code}`));
+      }
+    });
+  });
+};
 
 export const precondition: JSONEntryTransformPrecondition = fp.Predicate.and(
   fp.t0(fp.Predicate.not(isImgSource)),
@@ -24,20 +61,21 @@ export const transform = (options: TransformationOptions) =>
     if (!isPicture(node) || typeof node.src !== 'string' || isFileStorageId(node.src)) {
       return node;
     }
-    if (fp.Predicate.trueF()) {
-      return node;
-    }
 
     const picture = node as Picture;
 
-    const transformedImgPath = await transformImg(picture.src!, { ...options, ...picture });
+    const transformedImgPath = path.join(options.publicDir, picture.src!);
 
-    const sharp = (await import('sharp')).default;
-    const containerSize: ImgSize = options.dryRun ? {} : await sharp(transformedImgPath).metadata();
+    await processImageInChild(picture.src!, options, transformedImgPath);
 
     const sources = picture.sources ?? [];
     const transformedSources = await Promise.all(
-      sources.map(_ => transformImg(_.src!, { ...options, ..._, containerSize }))
+      sources.map(async source => {
+        const outputPath = path.join(options.publicDir, source.src!);
+        await processImageInChild(source.src!, options, outputPath);
+
+        return outputPath;
+      })
     );
 
     const imgPathToSrc = (_: string) => path.join('/', path.relative(options.publicDir, _));

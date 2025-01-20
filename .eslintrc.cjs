@@ -6,6 +6,9 @@ module.exports = {
   rules: {
     '@typescript-eslint/no-explicit-any': 'off'
   },
+  env: {
+    node: true
+  },
   overrides: [
     {
       files: ['src/**/*'],
