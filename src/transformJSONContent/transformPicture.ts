@@ -24,11 +24,16 @@ export const transform = (options: TransformationOptions) =>
     if (!isPicture(node) || typeof node.src !== 'string' || isFileStorageId(node.src)) {
       return node;
     }
+    if (fp.Predicate.trueF()) {
+      return node;
+    }
+
     const picture = node as Picture;
 
     const transformedImgPath = await transformImg(picture.src!, { ...options, ...picture });
 
-    const containerSize: ImgSize = options.dryRun ? {} : await (await sharp())(transformedImgPath).metadata();
+    const sharp = (await import('sharp')).default;
+    const containerSize: ImgSize = options.dryRun ? {} : await sharp(transformedImgPath).metadata();
 
     const sources = picture.sources ?? [];
     const transformedSources = await Promise.all(
@@ -47,5 +52,3 @@ export const transform = (options: TransformationOptions) =>
 
     return transformedPicture;
   });
-
-const sharp = async () => (await import('sharp')).default;

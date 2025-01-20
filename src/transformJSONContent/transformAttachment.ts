@@ -16,6 +16,9 @@ export const DOCUMENT_EXT_LIST = [
   '.pptx',
   '.pdf',
   '.zip',
+  '.gz',
+  '.tar',
+  '.tgz',
   '.7z'
 ];
 
