@@ -1,21 +1,59 @@
+import fs from 'fs/promises';
+import path from 'path';
 import sharp from 'sharp';
 
-process.on('message', async message => {
-  const { src, options, output } = message;
+const VECTOR_EXTENSIONS = ['.svg', '.eps', '.epsf', '.epsi', '.pdf'];
+
+/**
+ * Checks if the input file is a vector format.
+ */
+function isVectorInput(input) {
+  return VECTOR_EXTENSIONS.some(ext => input.toLowerCase().endsWith(ext));
+}
+
+/**
+ * Applies transformations to the image using sharp.
+ */
+async function processImage({ src, output, options }) {
+  const { size, containerSize, format, formatOptions } = options;
+
+  const shouldSkip = (!size && !containerSize && !format) || isVectorInput(src);
+
+  if (shouldSkip) {
+    await copyFile(src, output);
+    process.send({ success: true, output });
+    return;
+  }
 
   try {
-    const metadata = await sharp(src).metadata();
-    const size = options.resize || { width: metadata.width, height: metadata.height };
+    const chain = sharp(src);
 
-    await sharp(src)
-      .resize(size.width, size.height)
-      .toFormat(options.format, { ...options.formatOptions })
-      .toFile(output);
+    if (size || containerSize) {
+      const targetSize = size || containerSize;
+      chain.resize(targetSize.width, targetSize.height);
+    }
+
+    if (format) {
+      chain.toFormat(format, { ...formatOptions, lossless: true });
+    }
+
+    await chain.toFile(output);
 
     process.send({ success: true, output });
   } catch (err) {
     process.send({ success: false, error: err.message });
-  } finally {
-    process.exit();
   }
+}
+
+/**
+ * Utility to copy a file.
+ */
+async function copyFile(src, dest) {
+  const destDir = path.dirname(dest);
+  await fs.mkdir(destDir, { recursive: true });
+  await fs.copyFile(src, dest);
+}
+
+process.on('message', async message => {
+  await processImage(message);
 });

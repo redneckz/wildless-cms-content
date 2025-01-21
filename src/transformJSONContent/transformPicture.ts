@@ -24,15 +24,9 @@ interface ImageProcessorResponse {
   error?: string;
 }
 
-const processImageInChild = async (
-  src: string,
-  options: TransformationOptions & { format?: string },
-  output: string
-): Promise<void> => {
+async function processImageInChild(src: string, output: string, options: TransformationOptions): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = fork(path.resolve(__dirname, 'imageProcessor.js'));
-
-    child.send({ src, options, output });
+    const child = fork(path.resolve(__dirname, './imageProcessor.js'));
 
     child.on('message', (message: ImageProcessorResponse) => {
       if (message.success) {
@@ -43,13 +37,10 @@ const processImageInChild = async (
     });
 
     child.on('error', reject);
-    child.on('exit', code => {
-      if (code !== 0) {
-        reject(new Error(`Child process exited with code ${code}`));
-      }
-    });
+
+    child.send({ src, output, options });
   });
-};
+}
 
 export const precondition: JSONEntryTransformPrecondition = fp.Predicate.and(
   fp.t0(fp.Predicate.not(isImgSource)),
@@ -66,13 +57,13 @@ export const transform = (options: TransformationOptions) =>
 
     const transformedImgPath = path.join(options.publicDir, picture.src!);
 
-    await processImageInChild(picture.src!, options, transformedImgPath);
+    await processImageInChild(picture.src!, transformedImgPath, options);
 
     const sources = picture.sources ?? [];
     const transformedSources = await Promise.all(
       sources.map(async source => {
         const outputPath = path.join(options.publicDir, source.src!);
-        await processImageInChild(source.src!, options, outputPath);
+        await processImageInChild(source.src!, outputPath, options);
 
         return outputPath;
       })
