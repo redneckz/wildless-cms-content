@@ -1,59 +1,30 @@
-import fs from 'fs/promises';
-import path from 'path';
 import sharp from 'sharp';
+import { transformImg } from './transformImg';
 
-const VECTOR_EXTENSIONS = ['.svg', '.eps', '.epsf', '.epsi', '.pdf'];
+let timerId;
 
-/**
- * Checks if the input file is a vector format.
- */
-function isVectorInput(input) {
-  return VECTOR_EXTENSIONS.some(ext => input.toLowerCase().endsWith(ext));
-}
-
-/**
- * Applies transformations to the image using sharp.
- */
-async function processImage({ src, output, options }) {
-  const { size, containerSize, format, formatOptions } = options;
-
-  const shouldSkip = (!size && !containerSize && !format) || isVectorInput(src);
-
-  if (shouldSkip) {
-    await copyFile(src, output);
-    process.send({ success: true, output });
-    return;
-  }
-
+async function imageProcessor({ src, options }) {
   try {
-    const chain = sharp(src);
+    const output = await transformImg(src, options);
+    const containerSize = await sharp(output).metadata();
 
-    if (size || containerSize) {
-      const targetSize = size || containerSize;
-      chain.resize(targetSize.width, targetSize.height);
-    }
-
-    if (format) {
-      chain.toFormat(format, { ...formatOptions, lossless: true });
-    }
-
-    await chain.toFile(output);
-
-    process.send({ success: true, output });
+    process.send({ src, output, containerSize });
   } catch (err) {
-    process.send({ success: false, error: err.message });
+    console.error(err);
+    process.send({ src, error: err.message });
   }
-}
-
-/**
- * Utility to copy a file.
- */
-async function copyFile(src, dest) {
-  const destDir = path.dirname(dest);
-  await fs.mkdir(destDir, { recursive: true });
-  await fs.copyFile(src, dest);
 }
 
 process.on('message', async message => {
-  await processImage(message);
+  clearTimeout(timerId);
+
+  if (message && typeof message.src === 'string' && message.options) {
+    await imageProcessor(message);
+  } else {
+    console.warn('Invalid message format');
+  }
+
+  timerId = setTimeout(() => {
+    process.exit(0);
+  }, 10_000);
 });

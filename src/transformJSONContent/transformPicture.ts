@@ -1,14 +1,19 @@
 import { JSONPath, fp, type JSONRecord } from '@redneckz/json-op';
-import { fork } from 'child_process';
+import { fork, type ChildProcess } from 'child_process';
+import pLimit from 'p-limit';
 import { dirname } from 'path';
 import path from 'path/posix';
 import { fileURLToPath } from 'url';
 import { isFileStorageId } from '../api/isFileStorageId';
+import { type ImgSize } from './ImgSize';
 import { entryValueTransform, type JSONEntryTransformPrecondition } from './JSONEntryTransform';
 import { type Picture } from './Picture';
 import { type TransformationOptions } from './TransformationOptions';
 import { hasField } from './hasField';
 import { isAttachment } from './isAttachment';
+import { type TransformImgOptions } from './transformImg';
+
+const limit = pLimit(100);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,30 +22,6 @@ export const IMAGE_EXT_LIST = ['.jpeg', '.jpg', '.png', '.gif', '.webp', '.heif'
 
 const isImgSource = (path: JSONPath.JSONPath) => path.includes('sources');
 const isPicture = hasField('src', isAttachment(IMAGE_EXT_LIST));
-
-interface ImageProcessorResponse {
-  success: boolean;
-  output?: string;
-  error?: string;
-}
-
-async function processImageInChild(src: string, output: string, options: TransformationOptions): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = fork(path.resolve(__dirname, './imageProcessor.js'));
-
-    child.on('message', (message: ImageProcessorResponse) => {
-      if (message.success) {
-        resolve();
-      } else {
-        reject(new Error(message.error));
-      }
-    });
-
-    child.on('error', reject);
-
-    child.send({ src, output, options });
-  });
-}
 
 export const precondition: JSONEntryTransformPrecondition = fp.Predicate.and(
   fp.t0(fp.Predicate.not(isImgSource)),
@@ -55,29 +36,59 @@ export const transform = (options: TransformationOptions) =>
 
     const picture = node as Picture;
 
-    const transformedImgPath = path.join(options.publicDir, picture.src!);
-
-    await processImageInChild(picture.src!, transformedImgPath, options);
+    const { output, containerSize } = await limit(processImage, picture.src!, { ...options, ...picture });
 
     const sources = picture.sources ?? [];
     const transformedSources = await Promise.all(
-      sources.map(async source => {
-        const outputPath = path.join(options.publicDir, source.src!);
-        await processImageInChild(source.src!, outputPath, options);
-
-        return outputPath;
-      })
+      sources.filter(_ => _.src).map(_ => limit(processImage, _.src!, { ...options, ..._, containerSize }))
     );
 
     const imgPathToSrc = (_: string) => path.join('/', path.relative(options.publicDir, _));
     const transformedPicture: JSONRecord = {
       ...(picture as JSONRecord),
-      src: imgPathToSrc(transformedImgPath),
+      src: imgPathToSrc(output),
       sources: transformedSources.map((_, i) => ({
         ...(sources[i] as JSONRecord),
-        src: imgPathToSrc(_)
+        src: imgPathToSrc(_.output)
       }))
     };
 
     return transformedPicture;
   });
+
+let imageProcessor: ChildProcess;
+
+async function processImage(
+  src: string,
+  options: TransformImgOptions
+): Promise<{ output: string; containerSize?: ImgSize }> {
+  initImageProcessor();
+  const result = await new Promise<{ output: string; containerSize?: ImgSize }>(resolve => {
+    const defaultResult = () => resolve({ output: src });
+    const handle = (message: { src: string; output: string; containerSize?: ImgSize; error?: string }) => {
+      if (src === message.src) {
+        imageProcessor.off('message', handle);
+        message.output ? resolve(message) : defaultResult();
+      }
+    };
+    imageProcessor.on('message', handle);
+    if (!imageProcessor.send({ src, options })) {
+      defaultResult();
+    }
+  });
+
+  return result;
+}
+
+const initImageProcessor = () => {
+  if (!imageProcessor) {
+    imageProcessor = fork(path.resolve(__dirname, './imageProcessor.js'), [], {
+      stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+      cwd: process.cwd()
+    });
+
+    imageProcessor.stdout?.pipe(process.stdout);
+    imageProcessor.stderr?.pipe(process.stderr);
+    imageProcessor.setMaxListeners(0);
+  }
+};
