@@ -1,30 +1,28 @@
 import sharp from 'sharp';
 import { transformImg } from './transformImg';
 
-let timerId;
-
-async function imageProcessor({ src, options }) {
+async function imageProcessor({ id, src, options }) {
   try {
     const output = await transformImg(src, options);
     const containerSize = await sharp(output).metadata();
 
-    process.send({ src, output, containerSize });
+    process.send({ id, output, containerSize });
   } catch (err) {
     console.error(err);
-    process.send({ src, error: err.message });
+    process.send({ id, error: err.message });
   }
 }
 
 process.on('message', async message => {
-  clearTimeout(timerId);
-
   if (message && typeof message.src === 'string' && message.options) {
     await imageProcessor(message);
   } else {
     console.warn('Invalid message format');
   }
+});
 
-  timerId = setTimeout(() => {
-    process.exit(0);
-  }, 10_000);
+process.on('SIGTERM', () => {
+  process.disconnect();
+  process.removeAllListeners();
+  process.exitCode = 0;
 });

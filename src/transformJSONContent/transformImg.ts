@@ -1,8 +1,10 @@
-import fs from 'fs';
-import path from 'path/posix';
+import fs from 'node:fs';
+import path from 'node:path/posix';
+import util from 'node:util';
+
 import type { FormatEnum, Sharp } from 'sharp';
 import sharp from 'sharp';
-import util from 'util';
+
 import { computeImgOutputPath } from './computeImgOutputPath';
 import { isImgSizeEmpty, type ImgSize } from './ImgSize';
 import { type ImgSource } from './Picture';
@@ -19,12 +21,6 @@ export type TransformImgOptions = TransformationOptions &
   ImgSource & { containerSize?: ImgSize; cache?: TransformationTasksCache };
 
 const defaultTransformationCache: TransformationTasksCache = new Map();
-
-const isNilTransform = ({ size, containerSize, format }: TransformImgOptions) =>
-  isImgSizeEmpty(size) && isImgSizeEmpty(containerSize) && !format;
-
-const isVectorInput = (input: string) =>
-  ['.svg', '.eps', '.epsf', '.epsi', '.pdf'].some(ext => input.toLowerCase().endsWith(ext));
 
 export async function transformImg(src: string, options: TransformImgOptions): Promise<ImgOutputPath> {
   if (!src) {
@@ -64,6 +60,12 @@ export async function transformImg(src: string, options: TransformImgOptions): P
 
   return result;
 }
+
+const isNilTransform = ({ size, containerSize, format }: TransformImgOptions) =>
+  isImgSizeEmpty(size) && isImgSizeEmpty(containerSize) && !format;
+
+const isVectorInput = (input: string) =>
+  ['.svg', '.eps', '.epsf', '.epsi', '.pdf'].some(ext => input.toLowerCase().endsWith(ext));
 
 const transformImgWithSharp = ({ size, containerSize, format, options }: TransformImgOptions) =>
   pipe(resizeImg(isImgSizeEmpty(size) ? containerSize : size), sharp =>
